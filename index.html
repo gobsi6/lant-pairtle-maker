@@ -66,14 +66,48 @@
     justify-content:space-between;
     flex-wrap:wrap;
     row-gap:10px;
-    padding:16px 32px;
+    padding:16px 32px 16px 76px;
     border-bottom:1px solid var(--line);
     background:rgba(255,255,255,.9);
     backdrop-filter:blur(8px);
     position:sticky;
     top:0;
     z-index:50;
+    max-height:400px;
+    transition:max-height .25s ease, padding-top .2s ease, padding-bottom .2s ease, border-color .2s ease;
   }
+  /* Collapsed state is tracked on <body> rather than on #topbar itself, since
+     the toggle button lives outside the topbar (fixed, always visible) so it
+     stays reachable even once the topbar has fully collapsed away. */
+  body.menu-collapsed .topbar{
+    max-height:0;
+    padding-top:0;
+    padding-bottom:0;
+    overflow:hidden;
+    border-bottom-width:0;
+  }
+  /* Fixed in the top-left corner, independent of the topbar's own layout, so
+     it stays put (and stays clickable) whether the topbar is expanded,
+     collapsed, or mid-animation. */
+  .topbar-toggle-btn{
+    position:fixed;
+    top:19px; left:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:28px; height:28px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink-soft);
+    cursor:pointer;
+    flex-shrink:0;
+    z-index:60;
+    transition:background .12s ease, color .12s ease;
+  }
+  .topbar-toggle-btn:hover{ background:var(--accent-soft); color:var(--accent); }
+  .topbar-toggle-btn svg{ display:block; transition:transform .2s ease; }
+  body.menu-collapsed .topbar-toggle-btn svg{ transform:rotate(-180deg); }
   .brand{
     display:flex;
     align-items:center;
@@ -159,9 +193,10 @@
   /* ---------- Image size settings panel ---------- */
   .size-settings{ position:relative; }
   .size-panel{
-    position:absolute;
-    top:calc(100% + 8px);
-    right:0;
+    /* Same reasoning as .color-panel below: fixed + JS-computed position so
+       it always stays fully on-screen regardless of where its button ends up
+       after the toolbar wraps on narrow phones. */
+    position:fixed;
     background:#fff;
     border:1px solid var(--line);
     border-radius:12px;
@@ -171,6 +206,7 @@
     flex-direction:column;
     gap:14px;
     width:240px;
+    max-width:calc(100vw - 24px);
     z-index:60;
   }
   .size-panel label{
@@ -204,9 +240,11 @@
   /* ---------- Per-slot background color panel ---------- */
   .color-settings{ position:relative; }
   .color-panel{
-    position:absolute;
-    top:calc(100% + 8px);
-    right:0;
+    /* Fixed (not absolute) so its position is computed against the actual
+       viewport via JS (see positionDropdownPanel) rather than anchored to
+       this small button — on narrow phones, anchoring a wide panel to a
+       button near the topbar's right edge pushed its left side off-screen. */
+    position:fixed;
     background:#fff;
     border:1px solid var(--line);
     border-radius:12px;
@@ -216,6 +254,7 @@
     flex-direction:column;
     gap:12px;
     width:250px;
+    max-width:calc(100vw - 24px);
     max-height:70vh;
     overflow-y:auto;
     z-index:60;
@@ -264,13 +303,11 @@
   /* ---------- Stage wrapper ---------- */
   .stage-wrap{
     padding:48px 20px 84px;
-    display:flex;
-    justify-content:center;
     overflow-x:auto;
   }
   #stage{
     width:calc(860px + 2 * var(--tall-w, 288px));
-    flex-shrink:0;
+    margin:0 auto;
     background:linear-gradient(to bottom, var(--frame-bg, #E6E6E6), var(--frame-bg-dark, #C7C7C7));
     padding:28px;
     border-radius:14px;
@@ -1454,7 +1491,8 @@
 
   @media (max-width: 860px){
     .stage-wrap{ padding:24px 12px 60px; }
-    .topbar{ padding:14px 16px; }
+    .topbar{ padding:14px 16px 14px 60px; }
+    .topbar-toggle-btn{ left:16px; top:17px; }
   }
 </style>
 </head>
@@ -1474,7 +1512,10 @@
   </defs>
 </svg>
 
-<div class="topbar">
+<button type="button" class="topbar-toggle-btn" id="menuToggleBtn" title="메뉴 접기" aria-expanded="true" aria-controls="topbar">
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+<div class="topbar" id="topbar">
   <div class="brand">
     <div class="mark">란트 페어틀 메이커</div>
     <div class="version-badge">ver1.4</div>
@@ -2595,13 +2636,37 @@
 
   // ---- Reset ----
   // ---- Image size settings: live-adjust slot sizes via CSS variables ----
+  // Shared by both the size and color panels: positions a fixed-position
+  // dropdown so it always sits just below its trigger button, right-aligned
+  // to it as before, but clamped so it never runs off either edge of the
+  // viewport — the old CSS-only (position:absolute; right:0) approach broke
+  // on narrow phones once the toolbar wrapped and pushed the button close to
+  // the right edge, since a wide fixed-width panel anchored there would spill
+  // off the left side of the screen.
+  function positionDropdownPanel(panel, btn){
+    const btnRect = btn.getBoundingClientRect();
+    const margin = 12;
+    const panelWidth = panel.getBoundingClientRect().width;
+    const desiredLeft = btnRect.right - panelWidth;
+    const maxLeft = Math.max(margin, window.innerWidth - panelWidth - margin);
+    const left = Math.min(Math.max(desiredLeft, margin), maxLeft);
+    panel.style.top = `${btnRect.bottom + 8}px`;
+    panel.style.left = `${left}px`;
+    panel.style.right = 'auto';
+  }
+
   const sizePanel = document.getElementById('sizePanel');
   const colorPanel = document.getElementById('colorPanel');
-  document.getElementById('sizeSettingsBtn').addEventListener('click', (e) => {
+  const sizeSettingsBtn = document.getElementById('sizeSettingsBtn');
+  const colorSettingsBtn = document.getElementById('colorSettingsBtn');
+  sizeSettingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const opening = sizePanel.hidden;
     sizePanel.hidden = !sizePanel.hidden;
-    if(opening) colorPanel.hidden = true;
+    if(opening){
+      colorPanel.hidden = true;
+      positionDropdownPanel(sizePanel, sizeSettingsBtn);
+    }
   });
   document.addEventListener('click', (e) => {
     if(!sizePanel.hidden && !sizePanel.contains(e.target) && e.target.id !== 'sizeSettingsBtn'){
@@ -2610,14 +2675,33 @@
   });
 
   // ---- Color adjustment panel: toggle open/closed, same pattern as the size panel ----
-  document.getElementById('colorSettingsBtn').addEventListener('click', (e) => {
+  colorSettingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const opening = colorPanel.hidden;
     colorPanel.hidden = !colorPanel.hidden;
-    if(opening) sizePanel.hidden = true;
+    if(opening){
+      sizePanel.hidden = true;
+      positionDropdownPanel(colorPanel, colorSettingsBtn);
+    }
   });
   document.addEventListener('click', (e) => {
     if(!colorPanel.hidden && !colorPanel.contains(e.target) && e.target.id !== 'colorSettingsBtn'){
+      colorPanel.hidden = true;
+    }
+  });
+  window.addEventListener('resize', () => {
+    if(!sizePanel.hidden) positionDropdownPanel(sizePanel, sizeSettingsBtn);
+    if(!colorPanel.hidden) positionDropdownPanel(colorPanel, colorSettingsBtn);
+  });
+
+  // ---- Top menu collapse toggle (default: expanded) ----
+  const menuToggleBtn = document.getElementById('menuToggleBtn');
+  menuToggleBtn.addEventListener('click', () => {
+    const collapsed = document.body.classList.toggle('menu-collapsed');
+    menuToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+    menuToggleBtn.title = collapsed ? '메뉴 펼치기' : '메뉴 접기';
+    if(collapsed){
+      sizePanel.hidden = true;
       colorPanel.hidden = true;
     }
   });
