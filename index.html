@@ -743,9 +743,9 @@
   .swatch-box.has-shape .swatch-color-2{
     display:block;
     position:absolute;
-    top:6px; left:6px; right:6px; bottom:6px;
-    width:calc(100% - 12px);
-    height:calc(100% - 12px);
+    top:7px; left:7px; right:7px; bottom:7px;
+    width:calc(100% - 14px);
+    height:calc(100% - 14px);
     opacity:0;
     cursor:pointer;
     border:none;
@@ -754,9 +754,9 @@
   }
   .swatch-shape-svg{
     position:absolute;
-    top:6px; left:6px; right:6px; bottom:6px;
-    width:calc(100% - 12px);
-    height:calc(100% - 12px);
+    top:7px; left:7px; right:7px; bottom:7px;
+    width:calc(100% - 14px);
+    height:calc(100% - 14px);
     fill:currentColor;
     pointer-events:none;
     display:none;
@@ -2469,7 +2469,7 @@
   // ---- Contenteditable: select all text on the FIRST focus only (quick replace
   // of the default text), then leave later clicks alone so the caret lands where
   // the user clicks. ----
-  function wireEditableBehavior(el, plainEnterBreaks){
+  function wireEditableBehavior(el){
     // Select all existing content on every focus (not just the first ever
     // focus) so clicking back into a field always lets you retype from
     // scratch. This is the one shared listener all `.editable` fields use —
@@ -2486,12 +2486,7 @@
     el.addEventListener('keydown', (e) => {
       if(e.key === 'Enter'){
         e.preventDefault();
-        // Most single-line fields (names, titles, labels) use Enter-to-confirm
-        // with Alt+Enter as the line-break escape hatch. .badge-value (the
-        // 동물화 caption's description, e.g. "강아지"/"고양이") is the opposite —
-        // it's expected to wrap onto a couple of lines, so plain Enter breaks
-        // there and no Alt is needed.
-        if(plainEnterBreaks || e.altKey){
+        if(e.altKey){
           document.execCommand('insertLineBreak');
         }else{
           el.blur();
@@ -2499,8 +2494,7 @@
       }
     });
   }
-  document.querySelectorAll('.editable:not(.badge-value)').forEach(el => wireEditableBehavior(el));
-  document.querySelectorAll('.badge-value').forEach(el => wireEditableBehavior(el, true));
+  document.querySelectorAll('.editable').forEach(wireEditableBehavior);
 
   // ---- Slot caption (bottom-right credit text): toggle visibility based on content ----
   function refreshSlotCaption(el){
@@ -3842,11 +3836,11 @@
         const color2 = box.querySelector('.swatch-color-2');
         const fillColor = color2 ? color2.value : '#4D4D4D';
 
-        // Same 6px CSS inset on all sides, mapped into canvas px, then a further
+        // Same 7px CSS inset on all sides, mapped into canvas px, then a further
         // 24-unit-viewBox -> canvas-px scale for the shape geometry itself.
         const boxX = (r.left - stageRect.left) * scaleFactor;
         const boxY = (r.top - stageRect.top) * scaleFactor;
-        const inset = 6 * scaleFactor;
+        const inset = 7 * scaleFactor;
         const innerX = boxX + inset;
         const innerY = boxY + inset;
         const innerSize = (r.width * scaleFactor) - inset * 2;
