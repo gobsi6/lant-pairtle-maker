@@ -4064,8 +4064,13 @@
   // ---- Download as PNG ----
   document.getElementById('downloadBtn').addEventListener('click', async () => {
     const btn = document.getElementById('downloadBtn');
-    const original = btn.textContent;
-    btn.textContent = '이미지 생성 중...';
+    // Change only the label span's text, not the whole button — this leaves
+    // the icon completely untouched, and on narrow screens where the label is
+    // hidden (icon-only mode), "이미지 생성 중..." never becomes visible either,
+    // since it's just updating text inside an element that's already display:none.
+    const labelEl = btn.querySelector('.btn-label');
+    const originalLabel = labelEl.textContent;
+    labelEl.textContent = '이미지 생성 중...';
     btn.disabled = true;
     document.body.classList.add('exporting');
     document.activeElement && document.activeElement.blur();
@@ -4575,7 +4580,7 @@
       console.error(err);
     }finally{
       document.body.classList.remove('exporting');
-      btn.textContent = original;
+      labelEl.textContent = originalLabel;
       btn.disabled = false;
     }
   });
