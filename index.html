@@ -2469,7 +2469,7 @@
   // ---- Contenteditable: select all text on the FIRST focus only (quick replace
   // of the default text), then leave later clicks alone so the caret lands where
   // the user clicks. ----
-  function wireEditableBehavior(el){
+  function wireEditableBehavior(el, plainEnterBreaks){
     // Select all existing content on every focus (not just the first ever
     // focus) so clicking back into a field always lets you retype from
     // scratch. This is the one shared listener all `.editable` fields use —
@@ -2486,7 +2486,12 @@
     el.addEventListener('keydown', (e) => {
       if(e.key === 'Enter'){
         e.preventDefault();
-        if(e.altKey){
+        // Most single-line fields (names, titles, labels) use Enter-to-confirm
+        // with Alt+Enter as the line-break escape hatch. .badge-value (the
+        // 동물화 caption's description, e.g. "강아지"/"고양이") is the opposite —
+        // it's expected to wrap onto a couple of lines, so plain Enter breaks
+        // there and no Alt is needed.
+        if(plainEnterBreaks || e.altKey){
           document.execCommand('insertLineBreak');
         }else{
           el.blur();
@@ -2494,7 +2499,8 @@
       }
     });
   }
-  document.querySelectorAll('.editable').forEach(wireEditableBehavior);
+  document.querySelectorAll('.editable:not(.badge-value)').forEach(el => wireEditableBehavior(el));
+  document.querySelectorAll('.badge-value').forEach(el => wireEditableBehavior(el, true));
 
   // ---- Slot caption (bottom-right credit text): toggle visibility based on content ----
   function refreshSlotCaption(el){
