@@ -591,6 +591,9 @@
     margin-bottom:2px;
   }
   .img-slot.mini .placeholder .plus{ width:42px; height:42px; font-size:22px; margin-bottom:0; }
+  /* The mini (동물화) slot is much smaller than the main/tall slots, so its
+     placeholder caption needs to be noticeably smaller too or it won't fit. */
+  .img-slot.mini .placeholder{ font-size:11px; line-height:1.35; gap:5px; }
   .img-slot .hover-bar{
     position:absolute; bottom:0; left:0; right:0;
     background:rgba(0,0,0,.55);
@@ -1139,6 +1142,31 @@
   }
   .crop-reset-btn:hover{ border-color:var(--accent); color:var(--accent); }
 
+  /* On narrow phones the single-row control bar (zoom slider + 3 buttons) is
+     wider than the screen and ends up looking oversized/cramped — stack it
+     into two compact rows instead, sized to the viewport instead of a fixed
+     180px slider + full-padding buttons. */
+  @media (max-width: 480px){
+    .crop-overlay{ padding:16px; gap:12px; }
+    .crop-controls{
+      flex-direction:column;
+      align-items:stretch;
+      width:100%;
+      max-width:340px;
+      gap:10px;
+      padding:12px 14px;
+    }
+    .crop-controls .zoom-wrap{ width:100%; }
+    .crop-controls input[type=range]{ width:auto; flex:1 1 auto; }
+    .crop-controls .crop-btn-row{ width:100%; gap:8px; }
+    .crop-reset-btn, .crop-cancel-btn, .crop-apply-btn{
+      flex:1 1 0;
+      padding:9px 8px;
+      font-size:12.5px;
+      white-space:nowrap;
+    }
+  }
+
   /* ---------- Stickers (free-floating images) ---------- */
   .sticker{
     position:absolute;
@@ -1494,6 +1522,98 @@
     .topbar{ padding:14px 16px 14px 60px; }
     .topbar-toggle-btn{ left:16px; top:17px; }
   }
+
+  /* ---------- Custom color picker (touch-friendly replacement for the native
+     input[type=color] dialog on phones/tablets — desktop mouse users keep the
+     native picker, since it already works fine with a precise pointer) ---------- */
+  .ccp-overlay{
+    position:fixed; inset:0;
+    background:rgba(28,31,38,.55);
+    display:flex; align-items:center; justify-content:center;
+    z-index:200000;
+    padding:20px;
+  }
+  .ccp-overlay[hidden]{ display:none; }
+  body.exporting .ccp-overlay{ display:none !important; }
+  .ccp-panel{
+    background:#fff;
+    border-radius:16px;
+    padding:20px;
+    width:100%;
+    max-width:300px;
+    box-shadow:0 20px 50px rgba(28,31,38,.3);
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .ccp-title{
+    font-size:13px; font-weight:700; color:var(--ink-soft);
+    text-align:center;
+  }
+  .ccp-canvas-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio:1 / 1;
+    border-radius:12px;
+    overflow:hidden;
+    touch-action:none;
+    border:1px solid var(--line);
+  }
+  .ccp-canvas-wrap canvas{ width:100%; height:100%; display:block; }
+  .ccp-square-thumb{
+    position:absolute;
+    top:0; left:0;
+    width:22px; height:22px;
+    border-radius:50%;
+    border:3px solid #fff;
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.3);
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+  }
+  .ccp-hue-wrap{
+    position:relative;
+    width:100%; height:30px;
+    border-radius:15px;
+    overflow:hidden;
+    touch-action:none;
+    border:1px solid var(--line);
+  }
+  .ccp-hue-wrap canvas{ width:100%; height:100%; display:block; }
+  .ccp-hue-thumb{
+    position:absolute;
+    top:50%; left:0;
+    width:26px; height:26px;
+    border-radius:50%;
+    border:3px solid #fff;
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.3);
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    background:transparent;
+  }
+  .ccp-bottom-row{ display:flex; align-items:center; gap:10px; }
+  .ccp-preview{
+    width:42px; height:42px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    flex:0 0 auto;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.5);
+  }
+  .ccp-hex-input{
+    flex:1 1 auto;
+    min-width:0;
+    font-family:'Pretendard', sans-serif;
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:.02em;
+    text-transform:uppercase;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    color:var(--ink-text);
+  }
+  .ccp-hex-input:focus{ outline:none; border-color:var(--accent); }
+  .ccp-actions{ display:flex; gap:10px; }
+  .ccp-actions button{ flex:1 1 0; justify-content:center; }
 </style>
 </head>
 <body>
@@ -1701,8 +1821,11 @@
         <div class="card-bottom-tile">
         <div class="bottom-row">
           <div class="img-slot mini" data-slot="A-badge">
-            <div class="placeholder"><div class="plus">+</div></div>
-            <div class="hover-bar">변경</div>
+            <div class="placeholder">
+              <div class="plus">+</div>
+              <div>이미지<br>삽입</div>
+            </div>
+            <div class="hover-bar">이미지 변경</div>
             <div class="clear-btn" title="이미지 제거"><span class="x-glyph">×</span></div>
             <input type="file" accept="image/*">
             <div class="slot-caption editable" contenteditable="true" data-placeholder="커미션 출처"></div>
@@ -1877,8 +2000,11 @@
         <div class="card-bottom-tile">
         <div class="bottom-row">
           <div class="img-slot mini" data-slot="B-badge">
-            <div class="placeholder"><div class="plus">+</div></div>
-            <div class="hover-bar">변경</div>
+            <div class="placeholder">
+              <div class="plus">+</div>
+              <div>이미지<br>삽입</div>
+            </div>
+            <div class="hover-bar">이미지 변경</div>
             <div class="clear-btn" title="이미지 제거"><span class="x-glyph">×</span></div>
             <input type="file" accept="image/*">
             <div class="slot-caption editable" contenteditable="true" data-placeholder="커미션 출처"></div>
@@ -1911,6 +2037,31 @@
       <button type="button" class="crop-reset-btn" id="cropResetBtn">초기화</button>
       <button type="button" class="crop-cancel-btn" id="cropCancelBtn">취소</button>
       <button type="button" class="crop-apply-btn" id="cropApplyBtn">적용</button>
+    </div>
+  </div>
+</div>
+
+<!-- Touch-friendly color picker: on phones/tablets this replaces the native
+     input[type=color] dialog, which tends to be cramped or inconsistent
+     across mobile browsers. Desktop mouse users still get the native one. -->
+<div class="ccp-overlay" id="ccpOverlay" hidden>
+  <div class="ccp-panel">
+    <div class="ccp-title">색상 선택</div>
+    <div class="ccp-canvas-wrap" id="ccpSquareWrap">
+      <canvas id="ccpSquare" width="260" height="260"></canvas>
+      <div class="ccp-square-thumb" id="ccpSquareThumb"></div>
+    </div>
+    <div class="ccp-hue-wrap" id="ccpHueWrap">
+      <canvas id="ccpHue" width="260" height="30"></canvas>
+      <div class="ccp-hue-thumb" id="ccpHueThumb"></div>
+    </div>
+    <div class="ccp-bottom-row">
+      <div class="ccp-preview" id="ccpPreview"></div>
+      <input type="text" class="ccp-hex-input" id="ccpHexInput" maxlength="7" placeholder="#RRGGBB" autocapitalize="characters" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="ccp-actions">
+      <button type="button" class="ghost" id="ccpCancelBtn">취소</button>
+      <button type="button" class="primary" id="ccpApplyBtn">완료</button>
     </div>
   </div>
 </div>
@@ -2070,7 +2221,12 @@
     const boxH = slot.clientHeight;
     const ratio = boxW / boxH;
     const maxW = Math.min(560, window.innerWidth - 60);
-    const maxH = Math.min(560, window.innerHeight - 220);
+    // On narrow phones the control bar below wraps into two rows (zoom slider,
+    // then buttons), so it needs more reserved vertical space than the
+    // single-row desktop layout does — otherwise the stage would be sized as
+    // if the shorter bar were still there and the two could overlap.
+    const controlsReserve = window.innerWidth <= 480 ? 280 : 220;
+    const maxH = Math.min(560, window.innerHeight - controlsReserve);
     if(maxW / maxH > ratio){
       cropFrameH = maxH;
       cropFrameW = maxH * ratio;
@@ -3682,6 +3838,228 @@
     };
     reader.readAsText(file);
   });
+
+  // ---- Custom touch-friendly color picker ----
+  // Native input[type=color] dialogs are small, inconsistent, and fiddly to
+  // use with a finger across mobile browsers. On touch devices we intercept
+  // the click before the native dialog opens and show this larger
+  // hue-slider + saturation/brightness square picker instead. Desktop mouse
+  // users are untouched — the browser's native picker still opens for them,
+  // since it already works fine with a precise pointer.
+  (function setupCustomColorPicker(){
+    const overlay = document.getElementById('ccpOverlay');
+    if(!overlay) return;
+
+    const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+    const squareCanvas = document.getElementById('ccpSquare');
+    const squareThumb = document.getElementById('ccpSquareThumb');
+    const squareWrap = document.getElementById('ccpSquareWrap');
+    const hueCanvas = document.getElementById('ccpHue');
+    const hueThumb = document.getElementById('ccpHueThumb');
+    const hueWrap = document.getElementById('ccpHueWrap');
+    const preview = document.getElementById('ccpPreview');
+    const hexInput = document.getElementById('ccpHexInput');
+    const cancelBtn = document.getElementById('ccpCancelBtn');
+    const applyBtn = document.getElementById('ccpApplyBtn');
+
+    const sqCtx = squareCanvas.getContext('2d');
+    const hueCtx = hueCanvas.getContext('2d');
+
+    let hue = 0, sat = 0, val = 0; // hue: 0-360, sat/val: 0-1
+    let activeInput = null;
+    let draggingSquare = false;
+    let draggingHue = false;
+
+    function hsvToHex(h, s, v){
+      const c = v * s;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = v - c;
+      let r = 0, g = 0, b = 0;
+      if(h < 60){ r = c; g = x; b = 0; }
+      else if(h < 120){ r = x; g = c; b = 0; }
+      else if(h < 180){ r = 0; g = c; b = x; }
+      else if(h < 240){ r = 0; g = x; b = c; }
+      else if(h < 300){ r = x; g = 0; b = c; }
+      else { r = c; g = 0; b = x; }
+      const toHex = n => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+    }
+
+    function hexToHsv(hex){
+      hex = (hex || '#000000').replace('#', '');
+      if(hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+      if(hex.length !== 6) hex = '000000';
+      const r = parseInt(hex.substring(0, 2), 16) / 255;
+      const g = parseInt(hex.substring(2, 4), 16) / 255;
+      const b = parseInt(hex.substring(4, 6), 16) / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const d = max - min;
+      let h = 0;
+      if(d !== 0){
+        if(max === r) h = 60 * (((g - b) / d) % 6);
+        else if(max === g) h = 60 * ((b - r) / d + 2);
+        else h = 60 * ((r - g) / d + 4);
+      }
+      if(h < 0) h += 360;
+      const s = max === 0 ? 0 : d / max;
+      return { h, s, v: max };
+    }
+
+    function drawHueBar(){
+      const w = hueCanvas.width, h = hueCanvas.height;
+      const grad = hueCtx.createLinearGradient(0, 0, w, 0);
+      for(let i = 0; i <= 6; i++){
+        grad.addColorStop(i / 6, `hsl(${i * 60}, 100%, 50%)`);
+      }
+      hueCtx.fillStyle = grad;
+      hueCtx.fillRect(0, 0, w, h);
+    }
+
+    function drawSquare(){
+      const w = squareCanvas.width, h = squareCanvas.height;
+      sqCtx.fillStyle = hsvToHex(hue, 1, 1);
+      sqCtx.fillRect(0, 0, w, h);
+      const whiteGrad = sqCtx.createLinearGradient(0, 0, w, 0);
+      whiteGrad.addColorStop(0, 'rgba(255,255,255,1)');
+      whiteGrad.addColorStop(1, 'rgba(255,255,255,0)');
+      sqCtx.fillStyle = whiteGrad;
+      sqCtx.fillRect(0, 0, w, h);
+      const blackGrad = sqCtx.createLinearGradient(0, 0, 0, h);
+      blackGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      blackGrad.addColorStop(1, 'rgba(0,0,0,1)');
+      sqCtx.fillStyle = blackGrad;
+      sqCtx.fillRect(0, 0, w, h);
+    }
+
+    function updateThumbs(){
+      const sqRect = squareWrap.getBoundingClientRect();
+      squareThumb.style.left = `${sat * sqRect.width}px`;
+      squareThumb.style.top = `${(1 - val) * sqRect.height}px`;
+      const hueRect = hueWrap.getBoundingClientRect();
+      hueThumb.style.left = `${(hue / 360) * hueRect.width}px`;
+    }
+
+    function updatePreview(){
+      const hex = hsvToHex(hue, sat, val);
+      preview.style.background = hex;
+      hexInput.value = hex;
+    }
+
+    function refreshAll(){
+      drawHueBar();
+      drawSquare();
+      updateThumbs();
+      updatePreview();
+    }
+
+    function pointFromEvent(e, rect){
+      return {
+        x: Math.min(Math.max(e.clientX - rect.left, 0), rect.width),
+        y: Math.min(Math.max(e.clientY - rect.top, 0), rect.height)
+      };
+    }
+
+    function handleSquarePointer(e){
+      const rect = squareWrap.getBoundingClientRect();
+      const p = pointFromEvent(e, rect);
+      sat = rect.width === 0 ? 0 : p.x / rect.width;
+      val = rect.height === 0 ? 0 : 1 - (p.y / rect.height);
+      updateThumbs();
+      updatePreview();
+    }
+
+    function handleHuePointer(e){
+      const rect = hueWrap.getBoundingClientRect();
+      const p = pointFromEvent(e, rect);
+      hue = rect.width === 0 ? 0 : (p.x / rect.width) * 360;
+      drawSquare();
+      updateThumbs();
+      updatePreview();
+    }
+
+    squareWrap.addEventListener('pointerdown', (e) => {
+      draggingSquare = true;
+      squareWrap.setPointerCapture(e.pointerId);
+      handleSquarePointer(e);
+    });
+    squareWrap.addEventListener('pointermove', (e) => { if(draggingSquare) handleSquarePointer(e); });
+    squareWrap.addEventListener('pointerup', () => { draggingSquare = false; });
+    squareWrap.addEventListener('pointercancel', () => { draggingSquare = false; });
+
+    hueWrap.addEventListener('pointerdown', (e) => {
+      draggingHue = true;
+      hueWrap.setPointerCapture(e.pointerId);
+      handleHuePointer(e);
+    });
+    hueWrap.addEventListener('pointermove', (e) => { if(draggingHue) handleHuePointer(e); });
+    hueWrap.addEventListener('pointerup', () => { draggingHue = false; });
+    hueWrap.addEventListener('pointercancel', () => { draggingHue = false; });
+
+    hexInput.addEventListener('input', () => {
+      let raw = hexInput.value.trim();
+      if(!raw.startsWith('#')) raw = `#${raw}`;
+      if(/^#[0-9a-fA-F]{6}$/.test(raw)){
+        const hsv = hexToHsv(raw);
+        hue = hsv.h; sat = hsv.s; val = hsv.v;
+        drawSquare();
+        updateThumbs();
+        preview.style.background = raw.toUpperCase();
+      }
+    });
+    hexInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') applyBtn.click();
+    });
+
+    function closeOverlay(){
+      overlay.hidden = true;
+      activeInput = null;
+    }
+
+    cancelBtn.addEventListener('click', closeOverlay);
+
+    applyBtn.addEventListener('click', () => {
+      if(activeInput){
+        const hex = hsvToHex(hue, sat, val);
+        activeInput.value = hex;
+        // Every existing swatch listens for 'input' on the color input, which
+        // is exactly what drives its own color-apply logic — so this one
+        // dispatch is all it takes to fully apply the picked color, the same
+        // way the native dialog would.
+        activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      closeOverlay();
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if(e.target === overlay) closeOverlay();
+    });
+
+    function openPicker(input){
+      activeInput = input;
+      const hsv = hexToHsv(input.value || '#000000');
+      hue = hsv.h; sat = hsv.s; val = hsv.v;
+      overlay.hidden = false;
+      // Rects can't be measured accurately until the overlay has actually
+      // painted, so wait one frame before placing the thumbs.
+      requestAnimationFrame(refreshAll);
+    }
+
+    // Capture the click before it reaches the input's default action (which
+    // is what opens the native dialog) — preventDefault() here stops that
+    // dialog from appearing at all, on every browser that matters.
+    document.addEventListener('click', (e) => {
+      const input = e.target.closest('input[type=color]');
+      if(!input || !isTouchDevice()) return;
+      e.preventDefault();
+      input.blur();
+      openPicker(input);
+    }, true);
+
+    window.addEventListener('resize', () => {
+      if(!overlay.hidden) updateThumbs();
+    });
+  })();
 
   // ---- Download as PNG ----
   document.getElementById('downloadBtn').addEventListener('click', async () => {
